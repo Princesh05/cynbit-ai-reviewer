@@ -116,7 +116,159 @@ st.divider()
 
 
 # --------------------------------------------------
-# 6. PR ANALYSIS FORM
+# 6. GITHUB REPOSITORY INTEGRATION
+# --------------------------------------------------
+
+st.header("🐙 GitHub Repository Integration")
+
+st.write(
+    "Connect a public GitHub repository and fetch its "
+    "Pull Requests for further analysis."
+)
+
+github_col1, github_col2 = st.columns(2)
+
+with github_col1:
+    github_owner = st.text_input(
+        "GitHub Owner",
+        value="Princesh05",
+        key="github_owner"
+    )
+
+with github_col2:
+    github_repo = st.text_input(
+        "Repository Name",
+        value="cynbit-ai-reviewer",
+        key="github_repo"
+    )
+
+if st.button(
+    "🔍 Fetch Pull Requests",
+    key="fetch_github_prs",
+    type="primary"
+):
+
+    if not github_owner.strip() or not github_repo.strip():
+
+        st.warning(
+            "Please enter both GitHub owner and repository name."
+        )
+
+    else:
+
+        try:
+
+            with st.spinner("Fetching Pull Requests from GitHub..."):
+
+                response = requests.get(
+                    f"{API_URL}/github/"
+                    f"{github_owner.strip()}/"
+                    f"{github_repo.strip()}/pulls",
+                    timeout=30
+                )
+
+                response.raise_for_status()
+
+                github_data = response.json()
+
+            st.success(
+                "GitHub repository connected successfully!"
+            )
+
+            st.metric(
+                "Total Pull Requests",
+                github_data.get("total_pull_requests", 0)
+            )
+
+            pull_requests = github_data.get(
+                "pull_requests",
+                []
+            )
+
+            if pull_requests:
+
+                st.subheader("Repository Pull Requests")
+
+                for pr in pull_requests:
+
+                    pr_number = pr.get("number", "N/A")
+                    pr_title = pr.get("title", "Untitled")
+
+                    with st.expander(
+                        f"PR #{pr_number} - {pr_title}"
+                    ):
+
+                        user_data = pr.get("user") or {}
+
+                        author = (
+                            user_data.get("login", "Unknown")
+                            if isinstance(user_data, dict)
+                            else str(user_data)
+                        )
+
+                        st.write("**Author:**", author)
+
+                        st.write(
+                            "**State:**",
+                            pr.get("state", "Unknown")
+                        )
+
+                        st.write(
+                            "**PR Number:**",
+                            pr_number
+                        )
+
+                        pr_url = pr.get("html_url")
+
+                        if pr_url:
+
+                            st.link_button(
+                                "Open Pull Request on GitHub",
+                                pr_url
+                            )
+
+            else:
+
+                st.info(
+                    "No Pull Requests found in this repository."
+                )
+
+        except requests.exceptions.HTTPError:
+
+            st.error(
+                f"GitHub API request failed: "
+                f"{response.status_code}"
+            )
+
+            try:
+                st.json(response.json())
+            except ValueError:
+                st.write(response.text)
+
+        except requests.exceptions.Timeout:
+
+            st.error(
+                "GitHub request timed out. Please try again."
+            )
+
+        except requests.exceptions.RequestException as error:
+
+            st.error(
+                f"Unable to connect to FastAPI: {error}"
+            )
+
+        except ValueError:
+
+            st.error(
+                "The backend returned an invalid JSON response."
+            )
+
+
+st.divider()
+
+
+# --------------------------------------------------
+# 7. MANUAL PR ANALYSIS FORM
 # --------------------------------------------------
 
 st.header("🔍 Analyze a Pull Request")
@@ -142,6 +294,7 @@ with st.form("pr_analysis_form"):
     col1, col2, col3 = st.columns(3)
 
     with col1:
+
         files_changed = st.number_input(
             "Files Changed",
             min_value=0,
@@ -150,6 +303,7 @@ with st.form("pr_analysis_form"):
         )
 
     with col2:
+
         lines_added = st.number_input(
             "Lines Added",
             min_value=0,
@@ -158,6 +312,7 @@ with st.form("pr_analysis_form"):
         )
 
     with col3:
+
         lines_deleted = st.number_input(
             "Lines Deleted",
             min_value=0,
@@ -178,13 +333,16 @@ with st.form("pr_analysis_form"):
 
 
 # --------------------------------------------------
-# 7. SEND REQUEST TO FASTAPI
+# 8. SEND REQUEST TO FASTAPI
 # --------------------------------------------------
 
 if submitted:
 
     if not code.strip():
-        st.warning("Please enter Python code before submitting.")
+
+        st.warning(
+            "Please enter Python code before submitting."
+        )
 
     else:
 
@@ -213,7 +371,10 @@ if submitted:
                 result = response.json()
 
             st.session_state.latest_result = result
-            st.session_state.latest_files_changed = int(files_changed)
+
+            st.session_state.latest_files_changed = int(
+                files_changed
+            )
 
             st.success(
                 "Pull Request analysis completed successfully!"
@@ -250,7 +411,7 @@ if submitted:
 
 
 # --------------------------------------------------
-# 8. DISPLAY LATEST ANALYSIS
+# 9. DISPLAY LATEST ANALYSIS
 # --------------------------------------------------
 
 result = st.session_state.latest_result
@@ -453,6 +614,7 @@ if result is not None:
             )
 
             for topic in topics:
+
                 st.write(f"- {topic}")
 
             st.caption(
@@ -470,7 +632,7 @@ if result is not None:
 
 
 # --------------------------------------------------
-# 9. ANALYTICS SECTION
+# 10. ANALYTICS SECTION
 # --------------------------------------------------
 
 st.divider()
@@ -529,11 +691,13 @@ if history:
 
 else:
 
-    st.info("No saved PR analyses found in the database.")
+    st.info(
+        "No saved PR analyses found in the database."
+    )
 
 
 # --------------------------------------------------
-# 10. FOOTER
+# 11. FOOTER
 # --------------------------------------------------
 
 st.divider()

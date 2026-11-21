@@ -1,23 +1,23 @@
 # 🤖 Cynbit AI – Pull Request Intelligence & Developer Mentorship
 
-An AI-powered Pull Request analysis platform that reviews Python code, detects potential issues, predicts PR risk, integrates with GitHub repositories, and provides intelligent developer mentorship.
+An AI-powered Pull Request intelligence platform that analyzes Python code, detects potential issues, predicts PR risk, integrates with GitHub repositories, and provides intelligent developer mentorship.
 
 ## 🚀 Project Overview
 
-Cynbit AI is an intelligent code review and developer mentorship platform designed to help development teams improve code quality and identify potential problems before merging Pull Requests.
+Cynbit AI is an intelligent code review and developer mentorship platform designed to help developers improve code quality and identify potential problems before merging Pull Requests.
 
-The platform combines Static Code Analysis, Machine Learning, Large Language Models (LLMs), Retrieval-Augmented Generation (RAG), GitHub API integration, and LangGraph to generate comprehensive Pull Request analysis reports.
+The platform combines Static Code Analysis, Machine Learning, Large Language Models (LLMs), Retrieval-Augmented Generation (RAG), GitHub REST API integration, and LangGraph to generate comprehensive Pull Request analysis reports.
 
 ## ✨ Key Features
 
 - **Static Code Analysis:** Detects Python syntax errors, unused imports, unused variables, and long lines.
 - **ML-Based PR Risk Prediction:** Predicts Low, Medium, or High risk based on Pull Request statistics and detected issues.
-- **AI Code Review:** Uses Google Gemini with Groq fallback to identify logical errors, potential security concerns, and code quality improvements.
+- **AI Code Review:** Uses Google Gemini with Groq fallback to identify potential logical errors, code quality concerns, and improvement opportunities.
 - **Developer Mentorship:** Uses RAG to retrieve relevant Python programming knowledge and generate learning-oriented explanations.
-- **GitHub Integration:** Connects with GitHub repositories through the GitHub REST API to fetch repository Pull Requests.
+- **GitHub Integration:** Connects with public GitHub repositories through the GitHub REST API and fetches repository Pull Requests.
 - **LangGraph Workflow:** Coordinates static analysis, risk prediction, AI code review, and developer mentorship in a unified workflow.
-- **Company Dashboard:** Provides PR analysis results, risk distribution, issue statistics, and persistent analysis history.
-- **Persistent Storage:** Stores Pull Request analysis reports using SQLite.
+- **Interactive Dashboard:** Provides PR analysis results, risk distribution, issue statistics, GitHub integration, and persistent analysis history.
+- **Persistent Storage:** Stores Pull Request analysis records using SQLite.
 - **REST API:** Provides backend endpoints through FastAPI with interactive Swagger documentation.
 
 ## 🏗️ Project Architecture
@@ -104,11 +104,9 @@ cynbit-ai-reviewer/
 │   └── dashboard.py
 │
 ├── data/
-│   └── chroma_db/
 │
 ├── tests/
 │
-├── .env
 ├── .env.example
 ├── .gitignore
 ├── requirements.txt
@@ -120,7 +118,7 @@ cynbit-ai-reviewer/
 ### 1. Clone the Repository
 
 ```bash
-git clone YOUR_GITHUB_REPOSITORY_URL
+git clone https://github.com/Princesh05/cynbit-ai-reviewer.git
 cd cynbit-ai-reviewer
 ```
 
@@ -152,22 +150,28 @@ python -m pip install -r requirements.txt
 
 ### 5. Configure Environment Variables
 
-Create a `.env` file in the project root directory.
+Create a `.env` file in the project root directory using `.env.example` as a reference.
+
+Configure the required AI provider credentials:
 
 ```env
 GEMINI_API_KEY=your_gemini_api_key
 GROQ_API_KEY=your_groq_api_key
-GITHUB_TOKEN=your_github_token
+GITHUB_TOKEN=
 ```
 
-**Important:** Keep your API keys private. Never upload your `.env` file to GitHub.
-
-The GitHub token is used for authenticated GitHub API requests. Use an appropriately scoped token.
+**Important:**
+- Keep all API keys private.
+- Never upload your `.env` file to GitHub.
+- A GitHub token is optional for accessing public repositories. Authenticated requests can be configured for higher API rate limits and private repository access, subject to token permissions.
+- Use read-only repository permissions when configuring GitHub access.
 
 ### 6. Start the FastAPI Backend
 
+Open a terminal from the project root directory:
+
 ```bash
-uvicorn app.main:app --reload
+python -m uvicorn app.main:app --reload
 ```
 
 Backend URL:
@@ -180,7 +184,7 @@ http://127.0.0.1:8000/docs
 
 ### 7. Start the Streamlit Dashboard
 
-Open a second terminal from the project root and activate the same virtual environment.
+Open a second terminal from the project root directory and activate the same virtual environment.
 
 Run:
 
@@ -207,21 +211,11 @@ http://localhost:8501
 
 The LangGraph workflow coordinates the following stages:
 
-1. **Static Analysis:** Checks submitted Python code for syntax errors and basic quality issues.
+1. **Static Analysis:** Checks submitted Python code for syntax errors and basic code quality issues.
 2. **Risk Prediction:** Uses a Random Forest model to predict Pull Request risk.
-3. **AI Code Review:** Generates detailed code review feedback using Gemini or Groq.
+3. **AI Code Review:** Generates code review feedback using Google Gemini or Groq fallback.
 4. **Developer Mentorship:** Retrieves relevant programming knowledge from ChromaDB and generates educational explanations.
-5. **Final Report:** Combines all analysis results into one structured response.
-
-## 🧪 Testing
-
-Run the automated test suite:
-
-```bash
-python -m pytest tests/ -v
-```
-
-The test suite covers implemented static analysis, risk prediction, AI-related functionality, and other project components where tests are available.
+5. **Final Report:** Combines the analysis results into a structured response.
 
 ## 📊 Example Analysis
 
@@ -234,7 +228,7 @@ def calculate_total(price, quantity):
     return total
 ```
 
-The system can identify the unused `discount` variable and generate suggestions to improve the function.
+The current static analyzer can identify the unused `discount` variable and provide information about detected code quality issues.
 
 **Generated Analysis Includes:**
 
@@ -243,28 +237,39 @@ The system can identify the unused `discount` variable and generate suggestions 
 - Predicted Pull Request risk.
 - AI-generated code review.
 - RAG-based developer mentorship.
-- Suggested corrected code.
+- Suggested code improvements.
 - Combined analysis report.
 
-## ⚠️ Current Limitations
+## 🧪 Testing
 
-- The ML risk predictor is trained on a small synthetic dataset of 15 examples. Its predictions are experimental and have not been validated against real historical Pull Request outcomes.
-- Static analysis implements basic Python checks and is not a complete security scanner or replacement for professional linting tools.
-- AI responses depend on external model availability, API quotas, and network connectivity.
-- GitHub API integration is implemented for fetching repository Pull Requests, but live GitHub integration testing and validation remain pending.
-- The current analysis workflow accepts submitted Python source code and Pull Request statistics; automatic analysis of fetched GitHub Pull Request diffs is not yet fully integrated.
-- The application is an MVP prototype and has not been validated for production use.
+Run the automated test suite:
+
+```bash
+python -m pytest tests/ -v
+```
+
+The test suite covers implemented static analysis, risk prediction, vector store functionality, and other tested project components.
+
+## ⚠️ Current Implementation Status and Limitations
+
+- **GitHub Integration:** Public repository lookup and Pull Request fetching have been implemented and tested through the FastAPI backend and Streamlit dashboard.
+- **Automatic PR Code Analysis:** Fetching actual GitHub Pull Request changed files and diffs and sending them through the complete analysis workflow is still under development.
+- **Experimental ML Model:** The risk predictor is trained on a small synthetic dataset of 15 examples. Its predictions have not been validated against real-world Pull Request outcomes.
+- **Static Analysis:** Implements basic Python checks and is not a complete security scanner or replacement for professional linting tools.
+- **AI Availability:** AI responses depend on external model availability, API quotas, and network connectivity.
+- **MVP Status:** The application is a prototype and has not been validated for production use.
 
 ## 🔮 Future Improvements
 
-- Complete and validate end-to-end GitHub Pull Request analysis.
-- Automatically retrieve and analyze changed files and code diffs from GitHub PRs.
+- Complete end-to-end GitHub Pull Request code analysis.
+- Automatically retrieve changed files and code diffs from GitHub PRs.
+- Analyze individual changed files and provide line-level review feedback.
 - Support multiple programming languages.
 - Train the risk prediction model using real historical Pull Request data.
 - Improve security and vulnerability detection.
 - Add authentication and role-based access control.
 - Introduce advanced team-level analytics and reporting.
-- Explore cloud deployment, monitoring, and production scalability.
+- Explore deployment, monitoring, and production scalability.
 
 ## 👨‍💻 Author
 
@@ -272,9 +277,8 @@ The system can identify the unused `discount` variable and generate suggestions 
 
 B.Tech – Computer Science & Engineering (AI & ML)
 
-**GitHub:** https://github.com/Princesh05
-
-**LinkedIn:** https://www.linkedin.com/in/prince-kumar-sharma-415927314/
+- **GitHub:** https://github.com/Princesh05
+- **LinkedIn:** https://www.linkedin.com/in/prince-kumar-sharma-415927314/
 
 ---
 

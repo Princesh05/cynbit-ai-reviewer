@@ -24,11 +24,17 @@ API_URL = "http://127.0.0.1:8000"
 # 2. SESSION STATE
 # --------------------------------------------------
 
-if "latest_result" not in st.session_state:
-    st.session_state.latest_result = None
+defaults = {
+    "latest_result": None,
+    "latest_files_changed": 0,
+    "github_pull_requests": None,
+    "github_repository": None,
+    "latest_analysis_info": None
+}
 
-if "latest_files_changed" not in st.session_state:
-    st.session_state.latest_files_changed = 0
+for key, value in defaults.items():
+    if key not in st.session_state:
+        st.session_state[key] = value
 
 
 # --------------------------------------------------
@@ -51,7 +57,9 @@ try:
     if health_response.ok:
         st.sidebar.success("FastAPI Connected")
     else:
-        st.sidebar.warning("API is responding with an error")
+        st.sidebar.warning(
+            f"API Error: {health_response.status_code}"
+        )
 
 except requests.exceptions.RequestException:
     st.sidebar.error("FastAPI Disconnected")
@@ -123,7 +131,7 @@ st.header("🐙 GitHub Repository Integration")
 
 st.write(
     "Connect a public GitHub repository and fetch its "
-    "Pull Requests for further analysis."
+    "Pull Requests for AI-powered analysis."
 )
 
 github_col1, github_col2 = st.columns(2)
@@ -142,6 +150,11 @@ with github_col2:
         key="github_repo"
     )
 
+
+# --------------------------------------------------
+# FETCH PULL REQUESTS
+# --------------------------------------------------
+
 if st.button(
     "🔍 Fetch Pull Requests",
     key="fetch_github_prs",
@@ -158,7 +171,9 @@ if st.button(
 
         try:
 
-            with st.spinner("Fetching Pull Requests from GitHub..."):
+            with st.spinner(
+                "Fetching Pull Requests from GitHub..."
+            ):
 
                 response = requests.get(
                     f"{API_URL}/github/"
@@ -171,73 +186,22 @@ if st.button(
 
                 github_data = response.json()
 
+            st.session_state.github_pull_requests = (
+                github_data.get("pull_requests", [])
+            )
+
+            st.session_state.github_repository = (
+                f"{github_owner.strip()}/{github_repo.strip()}"
+            )
+
             st.success(
                 "GitHub repository connected successfully!"
             )
 
-            st.metric(
-                "Total Pull Requests",
-                github_data.get("total_pull_requests", 0)
-            )
-
-            pull_requests = github_data.get(
-                "pull_requests",
-                []
-            )
-
-            if pull_requests:
-
-                st.subheader("Repository Pull Requests")
-
-                for pr in pull_requests:
-
-                    pr_number = pr.get("number", "N/A")
-                    pr_title = pr.get("title", "Untitled")
-
-                    with st.expander(
-                        f"PR #{pr_number} - {pr_title}"
-                    ):
-
-                        user_data = pr.get("user") or {}
-
-                        author = (
-                            user_data.get("login", "Unknown")
-                            if isinstance(user_data, dict)
-                            else str(user_data)
-                        )
-
-                        st.write("**Author:**", author)
-
-                        st.write(
-                            "**State:**",
-                            pr.get("state", "Unknown")
-                        )
-
-                        st.write(
-                            "**PR Number:**",
-                            pr_number
-                        )
-
-                        pr_url = pr.get("html_url")
-
-                        if pr_url:
-
-                            st.link_button(
-                                "Open Pull Request on GitHub",
-                                pr_url
-                            )
-
-            else:
-
-                st.info(
-                    "No Pull Requests found in this repository."
-                )
-
         except requests.exceptions.HTTPError:
 
             st.error(
-                f"GitHub API request failed: "
-                f"{response.status_code}"
+                f"GitHub API request failed: {response.status_code}"
             )
 
             try:
@@ -264,6 +228,174 @@ if st.button(
             )
 
 
+# --------------------------------------------------
+# DISPLAY PULL REQUESTS
+# --------------------------------------------------
+
+pull_requests = st.session_state.github_pull_requests
+
+if pull_requests is not None:
+
+    st.metric(
+        "Total Pull Requests",
+        len(pull_requests)
+    )
+
+    if pull_requests:
+
+        st.subheader("Repository Pull Requests")
+
+        for pr in pull_requests:
+
+            pr_number = pr.get("number", "N/A")
+            pr_title = pr.get("title", "Untitled")
+
+            with st.expander(
+                f"PR #{pr_number} - {pr_title}"
+            ):
+
+                author = pr.get("author", "Unknown")
+
+                st.write("**Author:**", author)
+
+                st.write(
+                    "**State:**",
+                    pr.get("state", "Unknown")
+                )
+
+                st.write(
+                    "**PR Number:**",
+                    pr_number
+                )
+
+                st.write(
+                    "**Created At:**",
+                    pr.get("created_at", "Unavailable")
+                )
+
+                st.write(
+                    "**Last Updated:**",
+                    pr.get("updated_at", "Unavailable")
+                )
+
+                pr_url = pr.get("url") or pr.get("html_url")
+
+                if pr_url:
+
+                    st.link_button(
+                        "Open Pull Request on GitHub",
+                        pr_url
+                    )
+
+                st.divider()
+
+                # ----------------------------------
+                # ANALYZE GITHUB PULL REQUEST
+                # ----------------------------------
+
+                if st.button(
+                    "🚀 Analyze This Pull Request",
+                    key=f"analyze_github_pr_{pr_number}",
+                    type="primary"
+                ):
+
+                    try:
+
+                        with st.spinner(
+                            f"Analyzing GitHub PR #{pr_number}..."
+                        ):
+
+                            analyze_response = requests.post(
+                                f"{API_URL}/github/"
+                                f"{github_owner.strip()}/"
+                                f"{github_repo.strip()}/"
+                                f"pulls/{pr_number}/analyze",
+                                timeout=300
+                            )
+
+                            analyze_response.raise_for_status()
+
+                            github_result = analyze_response.json()
+
+                        analysis = github_result.get("analysis")
+
+                        if not isinstance(analysis, dict):
+                            st.error(
+                                "The backend returned an invalid analysis."
+                            )
+
+                        else:
+
+                            st.session_state.latest_result = analysis
+
+                            st.session_state.latest_files_changed = (
+                                github_result.get(
+                                    "total_changed_files", 0
+                                )
+                            )
+
+                            st.session_state.latest_analysis_info = {
+                                "source": "GitHub Pull Request",
+                                "repository": github_result.get(
+                                    "repository", "Unknown"
+                                ),
+                                "pr_number": github_result.get(
+                                    "pull_request_number", pr_number
+                                ),
+                                "pr_title": github_result.get(
+                                    "pull_request_title", pr_title
+                                ),
+                                "analysis_id": github_result.get(
+                                    "analysis_id", "Unavailable"
+                                ),
+                                "python_files": github_result.get(
+                                    "python_files_analyzed", []
+                                )
+                            }
+
+                            st.success(
+                                "GitHub Pull Request analyzed successfully!"
+                            )
+
+                            st.rerun()
+
+                    except requests.exceptions.HTTPError:
+
+                        st.error(
+                            f"PR analysis failed: "
+                            f"{analyze_response.status_code}"
+                        )
+
+                        try:
+                            st.json(analyze_response.json())
+                        except ValueError:
+                            st.write(analyze_response.text)
+
+                    except requests.exceptions.Timeout:
+
+                        st.error(
+                            "Analysis timed out. Please try again."
+                        )
+
+                    except requests.exceptions.RequestException as error:
+
+                        st.error(
+                            f"Unable to connect to backend: {error}"
+                        )
+
+                    except ValueError:
+
+                        st.error(
+                            "The backend returned an invalid JSON response."
+                        )
+
+    else:
+
+        st.info(
+            "No Pull Requests found in this repository."
+        )
+
+
 st.divider()
 
 
@@ -271,7 +403,7 @@ st.divider()
 # 7. MANUAL PR ANALYSIS FORM
 # --------------------------------------------------
 
-st.header("🔍 Analyze a Pull Request")
+st.header("🔍 Manual Pull Request Analysis")
 
 st.write(
     "Enter Python source code and Pull Request statistics "
@@ -333,7 +465,7 @@ with st.form("pr_analysis_form"):
 
 
 # --------------------------------------------------
-# 8. SEND REQUEST TO FASTAPI
+# 8. SEND MANUAL REQUEST TO FASTAPI
 # --------------------------------------------------
 
 if submitted:
@@ -376,14 +508,16 @@ if submitted:
                 files_changed
             )
 
+            st.session_state.latest_analysis_info = None
+
             st.success(
                 "Pull Request analysis completed successfully!"
             )
 
-        except requests.exceptions.HTTPError as error:
+        except requests.exceptions.HTTPError:
 
             st.error(
-                f"API returned an HTTP error: {error}"
+                f"API returned an HTTP error: {response.status_code}"
             )
 
             try:
@@ -403,7 +537,7 @@ if submitted:
                 f"Unable to connect to FastAPI: {error}"
             )
 
-        except (KeyError, ValueError) as error:
+        except ValueError as error:
 
             st.error(
                 f"Unexpected API response: {error}"
@@ -422,12 +556,49 @@ if result is not None:
 
     st.header("📊 Pull Request Analysis Results")
 
+    # GitHub analysis information
+
+    analysis_info = st.session_state.latest_analysis_info
+
+    if analysis_info:
+
+        st.success(
+            "Analysis Source: GitHub Pull Request"
+        )
+
+        st.write(
+            "**Repository:**",
+            analysis_info["repository"]
+        )
+
+        st.write(
+            "**Pull Request:**",
+            f"#{analysis_info['pr_number']} - "
+            f"{analysis_info['pr_title']}"
+        )
+
+        st.write(
+            "**Database Analysis ID:**",
+            analysis_info["analysis_id"]
+        )
+
+        st.write("**Python Files Analyzed:**")
+
+        for filename in analysis_info["python_files"]:
+            st.write(f"- `{filename}`")
+
+    else:
+
+        st.info("Analysis Source: Manual Code Submission")
+
     static_data = result.get("static_analysis", {})
     risk_data = result.get("risk_analysis", {})
     review_data = result.get("code_review", {})
     mentor_data = result.get("mentorship", {})
 
-    # Risk and issue metrics
+    # ----------------------------------------------
+    # ANALYSIS METRICS
+    # ----------------------------------------------
 
     col1, col2, col3 = st.columns(3)
 
@@ -454,10 +625,12 @@ if result is not None:
 
         st.metric(
             "Files Changed",
-            st.session_state.get("latest_files_changed", 0)
+            st.session_state.latest_files_changed
         )
 
-    # Risk status
+    # ----------------------------------------------
+    # RISK ASSESSMENT
+    # ----------------------------------------------
 
     st.subheader("PR Risk Assessment")
 
@@ -482,7 +655,9 @@ if result is not None:
 
         st.success("Low Risk Pull Request")
 
-    # Static analysis
+    # ----------------------------------------------
+    # STATIC ANALYSIS
+    # ----------------------------------------------
 
     with st.expander(
         "🔎 Static Code Analysis",
@@ -517,7 +692,9 @@ if result is not None:
 
             st.json(static_data)
 
-    # Risk confidence
+    # ----------------------------------------------
+    # RISK CONFIDENCE
+    # ----------------------------------------------
 
     with st.expander("📈 Risk Prediction Details"):
 
@@ -558,7 +735,9 @@ if result is not None:
                 )
             )
 
-    # AI code review
+    # ----------------------------------------------
+    # AI CODE REVIEW
+    # ----------------------------------------------
 
     with st.expander(
         "🤖 AI Code Review",
@@ -575,7 +754,8 @@ if result is not None:
             )
 
             st.caption(
-                f"AI Provider: {review_data.get('provider', 'Unknown')}"
+                f"AI Provider: "
+                f"{review_data.get('provider', 'Unknown')}"
             )
 
         else:
@@ -590,7 +770,9 @@ if result is not None:
                 )
             )
 
-    # Developer mentorship
+    # ----------------------------------------------
+    # DEVELOPER MENTORSHIP
+    # ----------------------------------------------
 
     with st.expander(
         "👨‍🏫 Developer Mentorship",
@@ -618,7 +800,8 @@ if result is not None:
                 st.write(f"- {topic}")
 
             st.caption(
-                f"AI Provider: {mentor_data.get('provider', 'Unknown')}"
+                f"AI Provider: "
+                f"{mentor_data.get('provider', 'Unknown')}"
             )
 
         else:
@@ -704,5 +887,6 @@ st.divider()
 
 st.caption(
     "Cynbit AI Pull Request Intelligence | "
-    "AI Code Review • ML Risk Prediction • RAG Mentorship • LangGraph"
+    "AI Code Review • ML Risk Prediction • "
+    "RAG Mentorship • LangGraph"
 )

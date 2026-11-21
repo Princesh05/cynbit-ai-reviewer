@@ -1,6 +1,7 @@
+
 # 🤖 Cynbit AI – Pull Request Intelligence & Developer Mentorship
 
-An AI-powered Pull Request intelligence platform that analyzes Python code, detects potential issues, predicts PR risk, integrates with GitHub repositories, and provides intelligent developer mentorship.
+An AI-powered Pull Request intelligence platform that analyzes Python code, detects potential issues, predicts Pull Request risk, integrates with GitHub repositories, and provides intelligent developer mentorship.
 
 ## 🚀 Project Overview
 
@@ -10,11 +11,12 @@ The platform combines Static Code Analysis, Machine Learning, Large Language Mod
 
 ## ✨ Key Features
 
-- **Static Code Analysis:** Detects Python syntax errors, unused imports, unused variables, and long lines.
+- **Static Code Analysis:** Detects Python syntax errors and basic code quality issues, including unused imports, unused variables, and long lines.
 - **ML-Based PR Risk Prediction:** Predicts Low, Medium, or High risk based on Pull Request statistics and detected issues.
 - **AI Code Review:** Uses Google Gemini with Groq fallback to identify potential logical errors, code quality concerns, and improvement opportunities.
 - **Developer Mentorship:** Uses RAG to retrieve relevant Python programming knowledge and generate learning-oriented explanations.
 - **GitHub Integration:** Connects with public GitHub repositories through the GitHub REST API and fetches repository Pull Requests.
+- **Automatic PR Analysis:** Retrieves Pull Request details, identifies changed Python files, fetches source code at the PR head commit, and sends it through the complete analysis workflow.
 - **LangGraph Workflow:** Coordinates static analysis, risk prediction, AI code review, and developer mentorship in a unified workflow.
 - **Interactive Dashboard:** Provides PR analysis results, risk distribution, issue statistics, GitHub integration, and persistent analysis history.
 - **Persistent Storage:** Stores Pull Request analysis records using SQLite.
@@ -30,6 +32,9 @@ Cynbit AI Reviewer
 ├── FastAPI Backend
 │   │
 │   ├── GitHub API Client
+│   │   ├── Fetch Pull Requests
+│   │   ├── Fetch PR Details
+│   │   └── Retrieve Changed Python Files
 │   │
 │   ├── Static Code Analyzer
 │   │
@@ -152,7 +157,7 @@ python -m pip install -r requirements.txt
 
 Create a `.env` file in the project root directory using `.env.example` as a reference.
 
-Configure the required AI provider credentials:
+Configure your AI provider credentials:
 
 ```env
 GEMINI_API_KEY=your_gemini_api_key
@@ -161,9 +166,11 @@ GITHUB_TOKEN=
 ```
 
 **Important:**
+
 - Keep all API keys private.
 - Never upload your `.env` file to GitHub.
-- A GitHub token is optional for accessing public repositories. Authenticated requests can be configured for higher API rate limits and private repository access, subject to token permissions.
+- A GitHub token is optional for accessing public repositories.
+- Authenticated requests can provide higher API rate limits and private repository access, subject to token permissions.
 - Use read-only repository permissions when configuring GitHub access.
 
 ### 6. Start the FastAPI Backend
@@ -202,7 +209,8 @@ http://localhost:8501
 |---|---|---|
 | GET | `/` | API welcome endpoint |
 | GET | `/health` | Backend health check |
-| GET | `/github/{owner}/{repo}/pulls` | Fetch repository Pull Requests from GitHub |
+| GET | `/github/{owner}/{repo}/pulls` | Fetch repository Pull Requests |
+| POST | `/github/{owner}/{repo}/pulls/{pull_number}/analyze` | Automatically analyze a GitHub Pull Request |
 | POST | `/ai/review` | AI-powered Python code review |
 | POST | `/ai/mentor` | RAG-based developer mentorship |
 | POST | `/ai/pr-workflow` | Execute the complete PR analysis workflow |
@@ -211,11 +219,13 @@ http://localhost:8501
 
 The LangGraph workflow coordinates the following stages:
 
-1. **Static Analysis:** Checks submitted Python code for syntax errors and basic code quality issues.
-2. **Risk Prediction:** Uses a Random Forest model to predict Pull Request risk.
-3. **AI Code Review:** Generates code review feedback using Google Gemini or Groq fallback.
-4. **Developer Mentorship:** Retrieves relevant programming knowledge from ChromaDB and generates educational explanations.
-5. **Final Report:** Combines the analysis results into a structured response.
+1. **GitHub Integration:** Retrieves Pull Request details and changed files from the selected repository.
+2. **Source Code Retrieval:** Fetches eligible Python source files from the Pull Request head commit.
+3. **Static Analysis:** Checks submitted Python code for syntax errors and basic code quality issues.
+4. **Risk Prediction:** Uses a Random Forest model to predict Pull Request risk.
+5. **AI Code Review:** Generates code review feedback using Google Gemini or Groq fallback.
+6. **Developer Mentorship:** Retrieves relevant programming knowledge from ChromaDB and generates educational explanations.
+7. **Final Report:** Combines the analysis results into a structured response and stores the analysis in SQLite.
 
 ## 📊 Example Analysis
 
@@ -228,7 +238,7 @@ def calculate_total(price, quantity):
     return total
 ```
 
-The current static analyzer can identify the unused `discount` variable and provide information about detected code quality issues.
+The current static analyzer can identify the unused `discount` variable and report relevant code quality issues.
 
 **Generated Analysis Includes:**
 
@@ -252,17 +262,16 @@ The test suite covers implemented static analysis, risk prediction, vector store
 
 ## ⚠️ Current Implementation Status and Limitations
 
-- **GitHub Integration:** Public repository lookup and Pull Request fetching have been implemented and tested through the FastAPI backend and Streamlit dashboard.
-- **Automatic PR Code Analysis:** Fetching actual GitHub Pull Request changed files and diffs and sending them through the complete analysis workflow is still under development.
-- **Experimental ML Model:** The risk predictor is trained on a small synthetic dataset of 15 examples. Its predictions have not been validated against real-world Pull Request outcomes.
+- **GitHub Integration:** Public repository lookup and Pull Request fetching are implemented and tested through the FastAPI backend and Streamlit dashboard.
+- **Automatic PR Code Analysis:** Retrieves Pull Request details, identifies changed Python files, fetches their source code at the PR head commit, and executes the analysis workflow. This functionality has been successfully tested with a GitHub Pull Request.
+- **Experimental ML Model:** The risk predictor uses a small synthetic dataset of 15 examples. Its predictions have not been validated against real-world Pull Request outcomes.
 - **Static Analysis:** Implements basic Python checks and is not a complete security scanner or replacement for professional linting tools.
 - **AI Availability:** AI responses depend on external model availability, API quotas, and network connectivity.
-- **MVP Status:** The application is a prototype and has not been validated for production use.
+- **Analysis Scope:** Automatic GitHub analysis currently focuses on eligible Python files. It does not provide a complete multi-language or line-level review system.
+- **MVP Status:** The application is a working prototype and has not been validated for production use.
 
 ## 🔮 Future Improvements
 
-- Complete end-to-end GitHub Pull Request code analysis.
-- Automatically retrieve changed files and code diffs from GitHub PRs.
 - Analyze individual changed files and provide line-level review feedback.
 - Support multiple programming languages.
 - Train the risk prediction model using real historical Pull Request data.
@@ -270,6 +279,36 @@ The test suite covers implemented static analysis, risk prediction, vector store
 - Add authentication and role-based access control.
 - Introduce advanced team-level analytics and reporting.
 - Explore deployment, monitoring, and production scalability.
+- Improve automated testing and model evaluation.
+
+## 📸 Screenshots
+
+Add screenshots of the following application features to a `screenshots/` folder in the repository:
+
+1. Main dashboard and project metrics.
+2. GitHub repository integration and Pull Request list.
+3. Successful automatic Pull Request analysis.
+4. AI code review and developer mentorship.
+5. Pull Request analytics and analysis history.
+
+Example:
+
+```text
+screenshots/
+├── dashboard.png
+├── github-integration.png
+├── pr-analysis.png
+├── ai-review.png
+└── analytics.png
+```
+
+After adding the images, you can embed them here:
+
+```markdown
+![Cynbit AI Dashboard](screenshots/dashboard.png)
+![GitHub Integration](screenshots/github-integration.png)
+![PR Analysis](screenshots/pr-analysis.png)
+```
 
 ## 👨‍💻 Author
 
